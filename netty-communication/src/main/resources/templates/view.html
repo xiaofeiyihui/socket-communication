@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head th:fragment="headJq(聊天室)">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">加载中</title>
+    <link rel="shortcut icon" th:href="@{/favicon.ico}" type="image/x-icon"/>
+    <!-- 引入jquery，Moment，socket.io -->
+    <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"></script>
+    <script src="https://cdn.bootcss.com/socket.io/2.3.0/socket.io.js"></script>
+</head>
+
+<body>
+
+<div id="app">
+    <input id="msgContent" name="msgContent" placeholder="请输入消息">
+    <select id="msgType" name="msgType">
+        <option value="00">全部</option>
+    </select>
+    <input type="button" onclick="sendMsg()" value="发送"/>
+    <input type="button" onclick="cleanMsg()" value="清空"/>
+    <ul id="msgList"></ul>
+</div>
+
+<script type="text/javascript" th:inline="javascript">
+    var userName, socket;
+    // Socket连接
+    function initIm() {
+        userName = prompt("请输入用户名进入聊天室");
+        if ($.trim(userName)) {
+            socket = io.connect("localhost:9090", {
+                'query': 'userName=' + userName
+            });
+
+            // 成功连接事件
+            socket.on('connect', function () {});
+            // 断开连接事件
+            socket.on('disconnect', function () {});
+
+            // 监听receiveMsg接收消息事件
+            socket.on('receiveMsg', function (data) {
+                console.log(data);
+                var msgLi = "<li>" + moment().format('HH:mm:ss') + "&nbsp;&nbsp;&nbsp;";
+                if (data.msgType == '00') {
+                    // 发送消息给全部人
+                    msgLi = msgLi + data.sourceUserName + ": " + data.msgContent;
+                } else if (data.msgType == '01') {
+                    // 上线通知
+                    msgLi = msgLi +  "<span style='color: blue'>" + data.sourceUserName + "进入了聊天室</span>";
+                } else if (data.msgType == '02') {
+                    // 下线通知
+                    msgLi = msgLi +  "<span style='color: gray'>" + data.sourceUserName + "离开了聊天室</span>";
+                }
+                msgLi = msgLi +  "</li>";
+                $('#msgList').append(msgLi);
+            });
+        } else {
+            alert("非法用户名");
+        }
+    }
+
+    initIm();
+
+    // 发送消息
+    function sendMsg() {
+        if ($.trim(userName)) {
+            var msgContent = $.trim($("#msgContent").val());
+            // 消息不能为空
+            if (msgContent) {
+                socket.emit('sendMsg', {
+                    "sourceUserName": userName,
+                    "msgType": $("#msgType").val(),
+                    "msgContent": msgContent
+                });
+            } else {
+                alert("消息不能为空");
+            }
+            $("#msgContent").val('');
+        } else {
+            initIm();
+        }
+    }
+
+    // 清空消息
+    function cleanMsg() {
+        var result = confirm("你确定清空消息吗");
+        if (result) {
+            $('#msgList').html('');
+        }
+    }
+</script>
+
+</body>
+
+</html>
